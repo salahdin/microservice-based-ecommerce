@@ -1,5 +1,8 @@
 package com.ecommerce.productservice;
 
+import com.ecommerce.productservice.model.Product;
+import com.ecommerce.productservice.repository.ProductRepository;
+import com.mongodb.assertions.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,6 +16,8 @@ import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.List;
+
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -25,6 +30,10 @@ class ProductServiceApplicationTests {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private ProductRepository productRepository;
+
 	@DynamicPropertySource
 	static void setProperties(DynamicPropertyRegistry dynamicPropertyRegistry) {
 		dynamicPropertyRegistry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
@@ -35,11 +44,30 @@ class ProductServiceApplicationTests {
 
 		mockMvc.perform(MockMvcRequestBuilders.post("/api/products")
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\n" +
-						"    \"name\": \"Product 1\",\n" +
-						"    \"description\": \"Product 1 description\",\n" +
-						"    \"price\": 100\n" +
-						"}")).andExpect(status().isCreated());
+				.content("""
+                        {
+                            "name": "Product 1",
+                            "description": "Product 1 description",
+                            "price": 100
+                        }""")).andExpect(status().isCreated());
+		Assertions.assertTrue(productRepository.findAll().size() == 1);
 	}
+
+	@Test
+	void shouldReturnProduct() throws Exception{
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/products")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+                        {
+                            "name": "Product 1",
+                            "description": "Product 1 description",
+                            "price": 100
+                        }"""));
+
+		Product product = productRepository.findAll().get(0);
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/products/"+ product.getId()))
+				.andExpect(status().isOk());
+	}
+
 
 }

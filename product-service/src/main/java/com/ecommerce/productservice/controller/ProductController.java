@@ -3,7 +3,6 @@ package com.ecommerce.productservice.controller;
 import com.ecommerce.productservice.adapter.ProductAdapter;
 import com.ecommerce.productservice.dto.ProductRequest;
 import com.ecommerce.productservice.dto.ProductResponse;
-import com.ecommerce.productservice.model.Product;
 import com.ecommerce.productservice.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

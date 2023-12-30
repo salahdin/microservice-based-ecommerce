@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class ProductAdapter {
@@ -45,6 +44,6 @@ public class ProductAdapter {
                         .description(product.getDescription())
                         .price(product.getPrice())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 }
