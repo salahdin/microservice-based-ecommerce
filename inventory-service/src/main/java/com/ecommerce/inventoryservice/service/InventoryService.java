@@ -7,7 +7,7 @@ import com.ecommerce.inventoryservice.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
+import java.util.List;
 
 
 @Service
@@ -23,5 +23,12 @@ public class InventoryService {
                 () -> new RuntimeException("Inventory not found")
         );
         return inventoryAdapter.toInventoryDto(inventory);
+    }
+
+    public List<InventoryDto> getInventories(List<String> skuCodes){
+        List<Inventory> inventories = inventoryRepository.findBySkuCodeIn(skuCodes);
+        return inventories.stream()
+                .map(inventoryAdapter::toInventoryDto)
+                .toList();
     }
 }
