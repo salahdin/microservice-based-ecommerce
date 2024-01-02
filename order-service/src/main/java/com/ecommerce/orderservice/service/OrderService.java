@@ -8,32 +8,40 @@ import com.ecommerce.orderservice.model.Order;
 import com.ecommerce.orderservice.model.OrderLineItems;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+/**
+ * Service class for handling order related operations.
+ */
 @Service
 @RequiredArgsConstructor
 public class OrderService {
 
     private final OrderAdapter orderAdapter;
     private final OrderRepository orderRepository;
-    private final RestTemplate restTemplate;
-    @Value("${inventory.service.url}")
-    private String inventoryServiceUrl;
+    private final WebClient.Builder webClientBuilder;
+    private final LoadBalancerClient loadBalancerClient;
 
+    /**
+     * Places an order.
+     *
+     * @param orderRequest the order request
+     * @return the order request
+     * @throws InventoryUnavailableException if the inventory is unavailable
+     */
     public OrderRequest placeOrder(OrderRequest orderRequest) throws InventoryUnavailableException{
         Order order = orderAdapter.toOrder(orderRequest);
         List<String> skuCodes = order.getOrderLineItemsList().stream().map(OrderLineItems::getSkuCode).toList();
-        String skuCodesQueryParam = String.join(",", skuCodes);
-        ResponseEntity<List<InventoryDto>> responseEntity = fetchInventory(skuCodesQueryParam);
+        List<InventoryDto> responseEntity = fetchInventory(skuCodes);
 
-        if (isInventoryAvailable(responseEntity.getBody())){
+        if (isInventoryAvailable(responseEntity)){
             Order savedOrder = orderRepository.save(order);
             return orderAdapter.toOrderDto(savedOrder);
         }else{
@@ -42,6 +50,12 @@ public class OrderService {
 
     }
 
+    /**
+     * Checks if the inventory is available.
+     *
+     * @param inventoryList the inventory list
+     * @return true if the inventory is available, false otherwise
+     */
     private boolean isInventoryAvailable(List<InventoryDto> inventoryList) {
         if (inventoryList.isEmpty()){
             return false;
@@ -49,16 +63,37 @@ public class OrderService {
         return inventoryList.stream().allMatch(inventoryDto -> inventoryDto.getStock() >= 0);
     }
 
-    private ResponseEntity<List<InventoryDto>> fetchInventory(String skuCodesQueryParam) {
-        String inventoryUrl = inventoryServiceUrl + "?skuCodes=" + skuCodesQueryParam;
-        return restTemplate.exchange(
-                inventoryUrl,
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<List<InventoryDto>>() {}
-        );
+    /**
+     * Fetches the inventory.
+     *
+     * @param skuCodesQueryParam the SKU codes query parameter
+     * @return the inventory
+     */
+    private List<InventoryDto> fetchInventory(List<String> skuCodesQueryParam) {
+        ServiceInstance serviceInstance = loadBalancerClient.choose("INVENTORY-SERVICE");
+        String uri = "http://localhost:" + serviceInstance.getPort() + "/api/inventory" +
+                "?skuCodes=" + String.join(",", skuCodesQueryParam);
+
+        return webClientBuilder.build().get()
+                .uri(uri)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, response ->
+                        Mono.error(new InventoryUnavailableException("Client error: " + response.statusCode()))
+                )
+                .onStatus(HttpStatusCode::is5xxServerError, response ->
+                        Mono.error(new Exception("Server error: " + response.statusCode()))
+                )
+                .bodyToFlux(InventoryDto.class)
+                .collectList()
+                .block();
     }
 
+    /**
+     * Gets an order.
+     *
+     * @param id the order ID
+     * @return the order request
+     */
     public OrderRequest getOrder(String id) {
         Order order = orderRepository.findById(Long.parseLong(id)).orElseThrow(() -> new RuntimeException("Order not found"));
         return orderAdapter.toOrderDto(order);
