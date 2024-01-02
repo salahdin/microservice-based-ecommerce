@@ -8,13 +8,12 @@ import com.ecommerce.orderservice.model.Order;
 import com.ecommerce.orderservice.model.OrderLineItems;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cloud.client.ServiceInstance;
-import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -27,7 +26,6 @@ public class OrderService {
     private final OrderAdapter orderAdapter;
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
-    private final LoadBalancerClient loadBalancerClient;
 
     /**
      * Places an order.
@@ -41,7 +39,7 @@ public class OrderService {
         List<String> skuCodes = order.getOrderLineItemsList().stream().map(OrderLineItems::getSkuCode).toList();
         List<InventoryDto> responseEntity = fetchInventory(skuCodes);
 
-        if (isInventoryAvailable(responseEntity)){
+        if (!responseEntity.isEmpty() && isInventoryAvailable(responseEntity)){
             Order savedOrder = orderRepository.save(order);
             return orderAdapter.toOrderDto(savedOrder);
         }else{
@@ -70,20 +68,23 @@ public class OrderService {
      * @return the inventory
      */
     private List<InventoryDto> fetchInventory(List<String> skuCodesQueryParam) {
-
-        return webClientBuilder.build().get()
-                .uri("http://inventory-service/api/inventory",
-                    uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodesQueryParam).build())
-                .retrieve()
-                .onStatus(HttpStatusCode::is4xxClientError, response ->
-                        Mono.error(new InventoryUnavailableException("Client error: " + response.statusCode()))
-                )
-                .onStatus(HttpStatusCode::is5xxServerError, response ->
-                        Mono.error(new Exception("Server error: " + response.statusCode()))
-                )
-                .bodyToFlux(InventoryDto.class)
-                .collectList()
-                .block();
+        try{
+            return webClientBuilder.build().get()
+                    .uri("http://inventory-service/api/inventory",
+                            uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodesQueryParam).build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, response ->
+                            Mono.error(new InventoryUnavailableException("Client error: " + response.statusCode()))
+                    )
+                    .onStatus(HttpStatusCode::is5xxServerError, response ->
+                            Mono.error(new Exception("Server error: " + response.statusCode()))
+                    )
+                    .bodyToFlux(InventoryDto.class)
+                    .collectList()
+                    .block();
+        }catch (Exception e){
+            return new ArrayList<>();
+        }
     }
 
     /**
