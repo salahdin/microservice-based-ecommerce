@@ -70,12 +70,10 @@ public class OrderService {
      * @return the inventory
      */
     private List<InventoryDto> fetchInventory(List<String> skuCodesQueryParam) {
-        ServiceInstance serviceInstance = loadBalancerClient.choose("INVENTORY-SERVICE");
-        String uri = "http://localhost:" + serviceInstance.getPort() + "/api/inventory" +
-                "?skuCodes=" + String.join(",", skuCodesQueryParam);
 
         return webClientBuilder.build().get()
-                .uri(uri)
+                .uri("http://inventory-service/api/inventory",
+                    uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodesQueryParam).build())
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, response ->
                         Mono.error(new InventoryUnavailableException("Client error: " + response.statusCode()))
