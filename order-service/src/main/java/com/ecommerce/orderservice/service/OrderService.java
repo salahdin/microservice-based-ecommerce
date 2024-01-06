@@ -39,6 +39,7 @@ public class OrderService {
         List<String> skuCodes = order.getOrderLineItemsList().stream().map(OrderLineItems::getSkuCode).toList();
         List<InventoryDto> responseEntity = fetchInventory(skuCodes);
 
+        //TODO: Add logic to check if the inventory is available
         if (!responseEntity.isEmpty() && isInventoryAvailable(responseEntity)){
             Order savedOrder = orderRepository.save(order);
             return orderAdapter.toOrderDto(savedOrder);
