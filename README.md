@@ -10,7 +10,23 @@ The application is composed of multiple services:
 
 2. **Inventory Service**: Manages the inventory of products. It provides an API to check the availability of items.
 
-3. **API Gateway**: Acts as a single entry point for all client requests. It routes requests to appropriate microservices. It also handles security using Spring Security and OAuth2.
+3. **Product Service**: Manages the product catalog. It provides APIs to create, update, delete, and retrieve products.
+
+4. **Notification Service**: Handles all operations related to notifications. It listens to the Kafka topic and sends notifications when an order is placed.
+
+5. **API Gateway**: Acts as a single entry point for all client requests. It routes requests to appropriate microservices. It also handles security using Spring Security and OAuth2.
+
+## Service Discovery
+
+Service discovery is implemented using Eureka. Each microservice registers itself with Eureka on startup and deregisters on shutdown. This allows the services to discover each other and communicate.
+
+## API Gateway
+
+The API Gateway is the single entry point for all client requests. It handles request routing, composition, and protocol translation. It uses Spring Security and OAuth2 for security.
+
+## Kafka Messaging
+
+Kafka is used for event-driven architecture. When an order is placed, a message is published to a Kafka topic. This allows for asynchronous communication between services and helps to decouple them.
 
 ## Setup and Run
 
@@ -44,6 +60,10 @@ Here are some of the key endpoints:
 
 - Inventory Service:
   - GET `/api/inventory`: Get the inventory for a list of SKU codes.
+
+- Product Service:
+  - POST `/api/product`: Create a new product.
+  - GET `/api/product/{id}`: Get a product by ID.
 
 ## Contributing
 
