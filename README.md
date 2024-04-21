@@ -1,4 +1,4 @@
-# E-Commerce Microservices Application
+# Microservices Based E-Commerce Application
 
 This is a Java-based microservices application for an e-commerce platform. The application is built using Spring Boot and Maven. It uses MySQL as the database and Kafka for event-driven architecture. The application also includes resilience patterns like Circuit Breaker, Retry, and Time Limiter using Resilience4j.
 
